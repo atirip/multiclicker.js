@@ -1,0 +1,260 @@
+<!doctype html>
+<html>
+<head>
+	<meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<style>
+	
+		* {
+			padding: 0;
+			margin: 0;
+			border: 0;
+			position: relative;
+			border: 0;
+			-ms-box-sizing: border-box;
+			-moz-box-sizing: border-box;
+			-webkit-box-sizing: border-box;
+			box-sizing: border-box;
+
+			user-select: none;
+			-moz-user-select: -moz-none;
+			-webkit-user-select: none;
+
+			--webkit-user-drag: none;
+
+			-webkit-touch-callout: none;
+			-webkit-tap-highlight-color: transparent;
+		}
+
+		p {
+			font: normal 12px/140% arial;
+		}
+		
+		#drag {
+			display: block;
+			width: 200px;
+			height: 200px;
+			cursor: pointer;
+			background: red;
+		}
+
+		table {
+			border-spacing:1px;
+			margin: auto;
+		}
+
+		td {
+			position: relative;
+			height: 1px;
+			width: 1px;
+			margin: 0;
+			padding: 0;
+			border: 0;
+		}
+
+		td > div {
+			background: grey;
+			position: relative;
+			width: 100px;
+			height: 100px;
+			overflow: hidden;
+		}
+
+		.click {
+			background: #f00;
+		}
+
+		.doubleclick {
+			background: #0f0;
+		}
+
+		.hold {
+			background: #00f;
+		}
+
+		.over {
+			background: #0ff;
+		}
+
+		.out {
+			background: #f0f;
+		}
+
+
+	</style>
+</head>
+<body>
+
+	<table id=table>
+		<tr>
+			<td><div></div>
+			<td><div></div>
+			<td><div></div>
+			<td><div></div>
+			<td><div></div>
+		<tr>
+			<td><div></div>
+			<td><div></div>
+			<td><div></div>
+			<td><div></div>
+			<td><div></div>
+		<tr>
+			<td><div></div>
+			<td><div></div>
+			<td><div></div>
+			<td><div></div>
+			<td><div></div>
+		<tr>
+			<td><div></div>
+			<td><div></div>
+			<td><div></div>
+			<td><div></div>
+			<td><div></div>
+	</table>
+<p>
+doubleclick is supported for first column only
+<p>
+test for click (red), doubleclick (green), hold (blue), just drag any square, drag clicked(red) square
+
+	<script src=feature-detector-min.js></script>
+	<script src=multiclicker-min.js></script>
+	<!-- https://github.com/atirip/mover.js -->
+	<script src=mover-min.js></script>
+
+	<script>
+
+		var target = document.getElementById('drag')
+		,	togglebg = function(node, className) {
+				if ( hasClass(node, className) )
+					node.className = ''
+				else
+					node.className = className
+			}
+
+		,	addClass = function(obj, className) {
+				obj.className += " " + className
+			}
+		,	removeClass = function(obj, className) {
+				obj.className = obj.className.replace(new RegExp("(^|\\s+)" + className + "(\\s+|$)"), "")
+			}
+		,	hasClass = function(obj, className) {
+				return (new RegExp('\\b' + className + '\\b')).test(obj.className)
+			}
+		,	mover = new atirip.mover
+		,	pos
+		,	proxy
+		,	pointerEvents = (function(style){
+				return 'pointerEvents' in style ? (style.pointerEvents = 'auto', style.pointerEvents = 'foo', style.pointerEvents == 'auto') : false
+		})( document.createElement('div').style );
+
+
+		new atirip.multiclicker(document, {
+			doubleClick: true,
+			holdDelay: 1000,
+			callback: function(type, event, data, handler) {
+				var t = data.originalTarget
+				if ( t.tagName != 'DIV' || t.parentNode.tagName != 'TD') return
+				switch(type) {
+				case 'click':
+				case 'doubleclick':
+					if ( t.parentNode.cellIndex ) return
+					togglebg(t, type)
+					break
+				}
+			}
+		})
+
+		new atirip.multiclicker(document, {
+			fireOver: true,
+			holdDelay: 1000,
+			doubleClick: false,
+			callback: function(type, event, data, handler) {
+				var t = data.originalTarget
+				,	box
+				,	className
+
+				if ( t.tagName != 'DIV' || t.parentNode.tagName != 'TD') return
+				switch(type) {
+				// start is fired when we start to listen - mousedown or touchstar
+				// like when we listen to doubleclick/doubletap, is fired only once
+				// it's more like informational event only, no real use
+				case 'start':
+					break
+				// stop is fired when we are done, at final mouseup or touchend
+				// like when we listen to doubleclick/doubletap, is fired only once
+				// it's more like informational event only, no real use
+				case 'stop':
+					removeClass(data.currentTarget, 'over')
+					break
+
+				case 'click':
+				case 'doubleclick':
+					if ( !t.parentNode.cellIndex ) return
+					togglebg(t, type)
+					break
+
+				// click and hold, any movement over small threshold will cancel
+				case 'hold':
+					togglebg(t, type)
+					break
+
+				// only event that expects return, return true if you want to start to receive dragging events
+				case 'dragstart':
+					if ( hasClass(t, 'click') ) {
+						pos = t.getBoundingClientRect()
+						document.body.insertAdjacentHTML('beforeend', '<div id=dragproxy class=click style="position:absolute;z-index:1;top:' +pos.left+ 'px;left:' +pos.top+ 'px;width:' +(pos.right-pos.left)+ 'px;height:' +(pos.bottom-pos.top)+ 'px;pointer-events:none;"></div>')
+						proxy = document.getElementById('dragproxy')
+						pointerEvents && (data.currentTarget.className = 'over')
+						return true
+					}
+					break
+				// fired while dragging
+				case 'drag':
+					mover.setXY( proxy , {
+						left: pos.left + data.dx,
+						top: pos.top + data.dy
+					})
+					handler.preventDefault(event)
+					break
+
+				// fired when dragging stopped,
+				case 'dragstop':
+					if ( proxy ) {
+						className = proxy.className
+						data.currentTarget.className = className
+						proxy.parentNode.removeChild(proxy)
+						if ( !pointerEvents ) {
+							;(t = document.elementFromPoint(data.px, data.py)) && (t.className = className)
+						}
+					}
+					break
+
+				// emulated mouseover, mouseout on all devices
+				case 'over':
+					if ( !data.currentTarget.className )
+						data.currentTarget.className = type
+					break;
+
+				case 'out':
+					data.lastTarget.className = ''
+					break
+
+				// fired on mousewheel
+				// the reason to track mousewheel is to hack two finger swipe on trackpad to respond as swipe on touch
+				case 'wheel':
+					break
+
+				// self explanatory, guess, no mouse analoque
+				// my recommendation is to use doubleclick with mouse and twofingertap on touch as analogs
+				case 'twofingertap':
+					break
+				}
+			}
+		})
+	</script>
+</body>
+</html>
+
+
+
+
+

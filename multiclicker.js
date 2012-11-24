@@ -395,7 +395,7 @@
 					delta = now - lastTouch
 
 					this.lastTouch = now
-					if( (delta < this.clickDelay && delta > 0) ) {
+					if( ( !this.moved && delta < this.clickDelay && delta > 0) ) {
 						this.clickTimer = this.clearTimer(this.clickTimer)
 						this.fire("doubleclick", event)
 						this.modifier = false
